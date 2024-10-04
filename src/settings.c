@@ -16,10 +16,14 @@ ServerSettings default_server_settings() {
 }
 
 int read_server_settings(ServerSettings *settings) {
-    FILE *file = fopen("settings.conf", "r");
+    FILE *file = fopen("./etc/settings.conf", "r");
     if (!file) {
-        perror("Failed to open settings.conf");
-        return -1;
+        perror("Failed to open ./etc/settings.conf, try /etc/settings.conf");
+        file = fopen("/etc/settings.conf", "r");
+        if (!file) {
+            perror("Failed to open /etc/settings.conf");
+            return -1;
+        }
     }
 
     char line[512];
@@ -47,7 +51,7 @@ int read_server_settings(ServerSettings *settings) {
 ServerSettings init_server_settings() {
     ServerSettings settings = default_server_settings();
     if (read_server_settings(&settings) == 0) {
-        printf("Settings loaded from settings.conf\n");
+        printf("Settings loaded from ./etc/settings.conf\n");
     }
     return settings;
 }
