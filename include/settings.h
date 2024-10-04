@@ -1,7 +1,6 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-
 typedef struct {
     char ip_address[16]; // For IPv4 addresses (xxx.xxx.xxx.xxx)
     int port;            // Port number
