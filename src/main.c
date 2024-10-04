@@ -127,15 +127,16 @@ void *handle_connection(void* data) {
         free(data);
         return NULL;
     }
-
     printf("Extracted path: '%s'\n", path);
+    
     char full_path[4096];
     snprintf(full_path, sizeof(full_path), "%s%s", settings.root_folder, path);
     free(path);
+    printf("Full path: '%s'\n", full_path);
 
     char *root_path = realpath(settings.root_folder, NULL);
     char *requested_path = realpath(full_path, NULL);
-    if (strncmp(requested_path, root_path, strlen(root_path)) != 0) {
+    if (root_path == NULL || requested_path == NULL || strncmp(requested_path, root_path, strlen(root_path)) != 0) {
         const char *error_response = "HTTP/1.1 403 Forbidden\r\n"
                                      "Content-Type: text/plain\r\n"
                                      "Content-Length: 14\r\n"
@@ -144,8 +145,11 @@ void *handle_connection(void* data) {
         send(sock, error_response, strlen(error_response), 0);
         close(sock);
         free(data);
+        free(root_path);
+        free(requested_path);
         return NULL;
     }
+    printf("Requested path: '%s'\n", requested_path);
 
     if (send_file(sock, full_path) < 0) {
         printf("Failed to send file: %s\n", full_path);
@@ -154,6 +158,8 @@ void *handle_connection(void* data) {
     // Close the client socket after handling
     close(sock);
     free(data);
+    free(root_path);
+    free(requested_path);
 
     return NULL;
 }
