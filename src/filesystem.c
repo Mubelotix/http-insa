@@ -99,6 +99,7 @@ const char* get_content_type(const char *path) {
     return "application/octet-stream"; // Default content type
 }
 
+// Function to list files in a directory
 void send_directory_listing(int socket, const char *path) {
     DIR *dir = opendir(path);
     if (dir == NULL) {
@@ -120,21 +121,17 @@ void send_directory_listing(int socket, const char *path) {
     
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_name[0] != '.') { // Skip hidden files (optional)
-            response_length += snprintf(response + response_length, sizeof(response) - response_length,
-                                         "<li><a href=\"%s\">%s</a></li>", entry->d_name, entry->d_name);
-        }
+        response_length += snprintf(response + response_length, sizeof(response) - response_length, "<li><a href=\"%s\">%s</a></li>", entry->d_name, entry->d_name);
     }
-    response_length += snprintf(response + response_length, sizeof(response) - response_length,
-                                 "</ul></body></html>");
+    response_length += snprintf(response + response_length, sizeof(response) - response_length, "</ul></body></html>");
 
     closedir(dir);
-    send(socket, response, response_length, 0); // Send directory listing
+    send(socket, response, response_length, 0);
 }
 
 // Function to send a file over a socket
 int send_file(int socket, const char *path) {
-    // Send HTTP headers before the file content
+    // Read some file stats
     const char *content_type = get_content_type(path);
     struct stat file_stat;
     if (stat(path, &file_stat) < 0) {
@@ -144,17 +141,17 @@ int send_file(int socket, const char *path) {
                                      "\r\n"
                                      "404 Not Found\n";
         send(socket, error_response, strlen(error_response), 0);
-        return -1; // Return -1 if file does not exist
+        return -1;
     }
 
     // Check if it's a directory
     if (S_ISDIR(file_stat.st_mode)) {
-        // Call the directory listing function
         send_directory_listing(socket, path);
-        return 0; // Return 0 on success
+        return 0;
     }
 
-    int file_fd = open(path, O_RDONLY);  // Open the file in read-only mode
+    // Open the file in read-only mode
+    int file_fd = open(path, O_RDONLY);  
     if (file_fd < 0) {
         const char *error_response = "HTTP/1.1 404 Not Found\r\n"
                                      "Content-Type: text/plain\r\n"
@@ -162,39 +159,37 @@ int send_file(int socket, const char *path) {
                                      "\r\n"
                                      "404 Not Found\n";
         send(socket, error_response, strlen(error_response), 0);
-        return -1; // Return -1 if file opening fails
+        return -1;
     }
 
     // Prepare and send the HTTP response headers
-    char length_header[512]; // Buffer for the response headers
+    char length_header[512];
     snprintf(length_header, sizeof(length_header),
              "HTTP/1.1 200 OK\r\n"
              "Content-Type: %s\r\n"
              "Content-Length: %lld\r\n"
              "\r\n",
              content_type, (long long)file_stat.st_size);
-    send(socket, length_header, strlen(length_header), 0); // Send headers
-
-    char buffer[4096];  // Buffer for reading the file
-    ssize_t bytes_read, bytes_sent;
+    send(socket, length_header, strlen(length_header), 0);
 
     // Loop to read from the file and send over the socket
+    char buffer[4096];
+    ssize_t bytes_read, bytes_sent;
     while ((bytes_read = read(file_fd, buffer, sizeof(buffer))) > 0) {
-        bytes_sent = send(socket, buffer, bytes_read, 0); // Send the data
+        bytes_sent = send(socket, buffer, bytes_read, 0);
         if (bytes_sent < 0) {
             perror("Failed to send file");
-            close(file_fd); // Close file descriptor before returning
-            return -1; // Return -1 if sending fails
+            close(file_fd);
+            return -1;
         }
     }
-
     if (bytes_read < 0) {
         perror("Failed to read file");
-        close(file_fd); // Close file descriptor before returning
-        return -1; // Return -1 if reading fails
+        close(file_fd);
+        return -1;
     }
 
-    close(file_fd); // Close the file descriptor
-    return 0; // Return 0 on success
+    close(file_fd);
+    return 0;
 }
 
