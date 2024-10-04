@@ -4,7 +4,7 @@ CFLAGS = -Wall -Iinclude -g
 
 # Source and target directories
 SRC_DIR = src
-OBJ_DIR = obj
+OBJ_DIR = target
 INCLUDE_DIR = include
 TARGET = main
 
