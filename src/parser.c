@@ -9,52 +9,54 @@
 const char *get_path(const char *request) {
     // Check if the request is NULL or empty
     if (request == NULL || *request == '\0') {
-        return NULL; // Return NULL if the request is invalid
+        return NULL;
     }
 
     // Find the first space which separates the method and path
     const char *start = strchr(request, ' ');
     if (start == NULL) {
-        return NULL; // Return NULL if no space found
+        return NULL;
     }
     start++; // Move to the character after the space
 
     // Find the next space which separates the path and the HTTP version
     const char *end = strchr(start, ' ');
     if (end == NULL) {
-        return NULL; // Return NULL if no second space found
+        return NULL;
     }
-
-    // Calculate the length of the path
-    size_t path_length = end - start;
 
     // Allocate memory for the path and copy it
+    size_t path_length = end - start;
     char *path = malloc(path_length + 1); // +1 for the null terminator
     if (path == NULL) {
-        return NULL; // Return NULL if memory allocation fails
+        return NULL;
     }
 
+    // Copy the path from the request
     strncpy(path, start, path_length);
     path[path_length] = '\0'; // Null-terminate the string
 
+    // Remove query parameters from the path (if any)
     char *query_pos = strchr(path, '?');
     if (query_pos) {
-        *query_pos = '\0'; // Terminate the string at the '?' to remove query parameters
+        *query_pos = '\0';
     }
 
-    char *decoded = percent_decode(path); // Decode the path
-    free(path); // Free the original path
+    // Decode the path
+    char *decoded = percent_decode(path);
+    free(path);
 
-    return decoded; // Return the decoded path
+    return decoded;
 }
 
 // Function to perform percent-decoding on a URL-encoded string
 char *percent_decode(const char *src) {
+    // Allocate memory for the decoded string
     size_t len = strlen(src);
-    char *decoded = malloc(len + 1);  // Allocate memory for the decoded string
+    char *decoded = malloc(len + 1);
     if (!decoded) {
         perror("Failed to allocate memory");
-        return NULL; // Return NULL if memory allocation fails
+        return NULL;
     }
 
     char *d = decoded; // Pointer to decoded string
@@ -79,7 +81,7 @@ char *percent_decode(const char *src) {
             *d++ = src[i];
         }
     }
-
     *d = '\0'; // Null-terminate the decoded string
-    return decoded; // Return the decoded string
+
+    return decoded;
 }
