@@ -42,7 +42,11 @@ const char *get_path(const char *request) {
 
 // Function to send a file over a socket
 int send_file(int socket, const char *path) {
-    int file_fd = open(path, O_RDONLY);  // Open the file in read-only mode
+    const char *prefix = "./src";
+    char full_path[4096];
+    snprintf(full_path, sizeof(full_path), "%s%s", prefix, path);
+
+    int file_fd = open(full_path, O_RDONLY);  // Open the file in read-only mode
     if (file_fd < 0) {
         perror("Failed to open file");
         return -1; // Return -1 if file opening fails
