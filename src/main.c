@@ -105,27 +105,40 @@ void *handle_connection(void* data) {
     // Buffer for reading the request
     char buffer[4096];
     int read_size = recv(sock, buffer, sizeof(buffer) - 1, 0);
-    if (read_size > 0) {
-        buffer[read_size] = '\0';  // Null-terminate the received data
-        char *path = get_path(buffer); // Use the get_path function
-        if (path) {
-            printf("Extracted path: '%s'\n", path);
-            char full_path[4096];
-            snprintf(full_path, sizeof(full_path), "%s%s", settings.root_folder, path);
-            free(path);
-
-            if (send_file(sock, full_path) < 0) {
-                printf("Failed to send file: %s\n", full_path);
-            }
-        } else {
-            printf("Failed to extract path from request.\n");
-        }
-    } else {
+    if (read_size <= 0) {
         printf("Failed to receive request.\n");
+        close(sock);
+        free(data);
+        return NULL;
+    }
+
+    buffer[read_size] = '\0';  // Null-terminate the received data
+    char *path = get_path(buffer); // Use the get_path function
+
+    if (path == NULL) {
+        const char *error_response = "HTTP/1.1 404 Not Found\r\n"
+                                     "Content-Type: text/plain\r\n"
+                                     "Content-Length: 14\r\n"
+                                     "\r\n"
+                                     "404 Not Found\n";
+        send(socket, error_response, strlen(error_response), 0);
+        close(sock);
+        free(data);
+        return NULL;
+    }
+
+    printf("Extracted path: '%s'\n", path);
+    char full_path[4096];
+    snprintf(full_path, sizeof(full_path), "%s%s", settings.root_folder, path);
+    free(path);
+
+    if (send_file(sock, full_path) < 0) {
+        printf("Failed to send file: %s\n", full_path);
     }
 
     // Close the client socket after handling
     close(sock);
+    free(data);
 
     return NULL;
 }
