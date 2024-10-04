@@ -17,7 +17,7 @@ typedef struct {
 void *handle_connection(void* data);
 
 int main() {
-    ServerSettings settings = default_server_settings();
+    ServerSettings settings = init_server_settings();
 
     int server_fd, new_socket;
     struct sockaddr_in address;

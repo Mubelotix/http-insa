@@ -8,6 +8,8 @@ typedef struct {
     char root_folder[256]; // Path to the root folder
 } ServerSettings;
 
+ServerSettings init_server_settings();
 ServerSettings default_server_settings();
+int read_server_settings(ServerSettings *settings);
 
 #endif
