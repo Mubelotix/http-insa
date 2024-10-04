@@ -37,6 +37,11 @@ const char *get_path(const char *request) {
     strncpy(path, start, path_length);
     path[path_length] = '\0'; // Null-terminate the string
 
+    char *query_pos = strchr(path, '?');
+    if (query_pos) {
+        *query_pos = '\0'; // Terminate the string at the '?' to remove query parameters
+    }
+
     char *decoded = percent_decode(path); // Decode the path
     free(path); // Free the original path
 
