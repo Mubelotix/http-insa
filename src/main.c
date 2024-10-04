@@ -29,6 +29,7 @@ int main() {
         perror("socket failed");
         exit(EXIT_FAILURE);
     }
+    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
 
     // 2. Define the address to bind to
     address.sin_family = AF_INET;
@@ -50,7 +51,7 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    printf("Serving %s on %s:%d\n", settings.root_folder, settings.ip_address, settings.port);
+    printf("Serving %s on http://%s:%d\n", settings.root_folder, settings.ip_address, settings.port);
 
     // 5. Accept an incoming connection
     while (1) {
@@ -131,6 +132,20 @@ void *handle_connection(void* data) {
     char full_path[4096];
     snprintf(full_path, sizeof(full_path), "%s%s", settings.root_folder, path);
     free(path);
+
+    char *root_path = realpath(settings.root_folder, NULL);
+    char *requested_path = realpath(full_path, NULL);
+    if (strncmp(requested_path, root_path, strlen(root_path)) != 0) {
+        const char *error_response = "HTTP/1.1 403 Forbidden\r\n"
+                                     "Content-Type: text/plain\r\n"
+                                     "Content-Length: 14\r\n"
+                                     "\r\n"
+                                     "403 Forbidden\n";
+        send(sock, error_response, strlen(error_response), 0);
+        close(sock);
+        free(data);
+        return NULL;
+    }
 
     if (send_file(sock, full_path) < 0) {
         printf("Failed to send file: %s\n", full_path);
