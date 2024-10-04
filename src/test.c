@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include "test.h"
 
 // Function to extract the path from an HTTP request line
@@ -59,11 +60,64 @@ const char* get_content_type(const char *path) {
     return "application/octet-stream"; // Default content type
 }
 
+void send_directory_listing(int socket, const char *path) {
+    DIR *dir = opendir(path);
+    if (dir == NULL) {
+        const char *error_response = "HTTP/1.1 500 Internal Server Error\r\n"
+                                     "Content-Type: text/plain\r\n"
+                                     "Content-Length: 21\r\n"
+                                     "\r\n"
+                                     "500 Internal Error\n";
+        send(socket, error_response, strlen(error_response), 0);
+        return;
+    }
+
+    char response[4096];
+    int response_length = snprintf(response, sizeof(response),
+                                    "HTTP/1.1 200 OK\r\n"
+                                    "Content-Type: text/html\r\n"
+                                    "\r\n"
+                                    "<html><body><h1>Directory Listing</h1><ul>");
+    
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_name[0] != '.') { // Skip hidden files (optional)
+            response_length += snprintf(response + response_length, sizeof(response) - response_length,
+                                         "<li><a href=\"%s\">%s</a></li>", entry->d_name, entry->d_name);
+        }
+    }
+    response_length += snprintf(response + response_length, sizeof(response) - response_length,
+                                 "</ul></body></html>");
+
+    closedir(dir);
+    send(socket, response, response_length, 0); // Send directory listing
+}
+
 // Function to send a file over a socket
 int send_file(int socket, const char *path) {
     const char *prefix = "./src";
     char full_path[4096];
     snprintf(full_path, sizeof(full_path), "%s%s", prefix, path);
+
+    // Send HTTP headers before the file content
+    const char *content_type = get_content_type(path);
+    struct stat file_stat;
+    if (stat(full_path, &file_stat) < 0) {
+        const char *error_response = "HTTP/1.1 404 Not Found\r\n"
+                                     "Content-Type: text/plain\r\n"
+                                     "Content-Length: 19\r\n"
+                                     "\r\n"
+                                     "404 Not Found\n";
+        send(socket, error_response, strlen(error_response), 0);
+        return -1; // Return -1 if file does not exist
+    }
+
+    // Check if it's a directory
+    if (S_ISDIR(file_stat.st_mode)) {
+        // Call the directory listing function
+        send_directory_listing(socket, full_path);
+        return 0; // Return 0 on success
+    }
 
     int file_fd = open(full_path, O_RDONLY);  // Open the file in read-only mode
     if (file_fd < 0) {
@@ -76,14 +130,6 @@ int send_file(int socket, const char *path) {
         return -1; // Return -1 if file opening fails
     }
 
-    // Send HTTP headers before the file content
-    const char *content_type = get_content_type(path);
-    struct stat file_stat;
-    if (fstat(file_fd, &file_stat) < 0) {
-        perror("Failed to get file stats");
-        close(file_fd);
-        return -1;
-    }
     // Prepare and send the HTTP response headers
     char length_header[512]; // Buffer for the response headers
     snprintf(length_header, sizeof(length_header),
