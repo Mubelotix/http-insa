@@ -95,6 +95,9 @@ void *handle_connection(void *socket_desc) {
         char *path = get_path(buffer); // Use the get_path function
         if (path) {
             printf("Extracted path: '%s'\n", path);
+            if (send_file(sock, path) < 0) {
+                printf("Failed to send file: %s\n", path);
+            }
             free(path);  // Free the allocated memory for the path
         } else {
             printf("Failed to extract path from request.\n");

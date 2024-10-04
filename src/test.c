@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include "test.h"
 
 // Function to extract the path from an HTTP request line
@@ -37,3 +39,35 @@ const char *get_path(const char *request) {
 
     return path; // Return the extracted path
 }
+
+// Function to send a file over a socket
+int send_file(int socket, const char *path) {
+    int file_fd = open(path, O_RDONLY);  // Open the file in read-only mode
+    if (file_fd < 0) {
+        perror("Failed to open file");
+        return -1; // Return -1 if file opening fails
+    }
+
+    char buffer[4096];  // Buffer for reading the file
+    ssize_t bytes_read, bytes_sent;
+
+    // Loop to read from the file and send over the socket
+    while ((bytes_read = read(file_fd, buffer, sizeof(buffer))) > 0) {
+        bytes_sent = send(socket, buffer, bytes_read, 0); // Send the data
+        if (bytes_sent < 0) {
+            perror("Failed to send file");
+            close(file_fd); // Close file descriptor before returning
+            return -1; // Return -1 if sending fails
+        }
+    }
+
+    if (bytes_read < 0) {
+        perror("Failed to read file");
+        close(file_fd); // Close file descriptor before returning
+        return -1; // Return -1 if reading fails
+    }
+
+    close(file_fd); // Close the file descriptor
+    return 0; // Return 0 on success
+}
+
