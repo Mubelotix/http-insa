@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include "test.h"
 
 #define PORT 8080
 #define BACKLOG 10      // Number of pending connections queue will hold
@@ -80,15 +81,30 @@ void *handle_connection(void *socket_desc) {
     free(socket_desc);  // Free the allocated memory for the socket descriptor
 
     // Send a message to the client
-    char *message = "Hello! You are connected to the server.\n";
-    send(sock, message, strlen(message), 0);
+    // char *message = "Hello! You are connected to the server.\n";
+    // send(sock, message, strlen(message), 0);
 
     // Print a message indicating that the connection is being handled
     printf("Handling connection on socket %d\n", sock);
+
+    // Buffer for reading the request
+    char buffer[4096];
+    int read_size = recv(sock, buffer, sizeof(buffer) - 1, 0);
+    if (read_size > 0) {
+        buffer[read_size] = '\0';  // Null-terminate the received data
+        char *path = get_path(buffer); // Use the get_path function
+        if (path) {
+            printf("Extracted path: '%s'\n", path);
+            free(path);  // Free the allocated memory for the path
+        } else {
+            printf("Failed to extract path from request.\n");
+        }
+    } else {
+        printf("Failed to receive request.\n");
+    }
 
     // Close the client socket after handling
     close(sock);
 
     return NULL;
 }
-
