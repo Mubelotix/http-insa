@@ -41,6 +41,24 @@ const char *get_path(const char *request) {
     return path; // Return the extracted path
 }
 
+// Function to get the content type based on the file extension
+const char* get_content_type(const char *path) {
+    const char *ext = strrchr(path, '.'); // Find the last dot in the path
+    if (ext) {
+        if (strcmp(ext, ".html") == 0) return "text/html";
+        if (strcmp(ext, ".htm") == 0) return "text/html";
+        if (strcmp(ext, ".txt") == 0) return "text/plain";
+        if (strcmp(ext, ".css") == 0) return "text/css";
+        if (strcmp(ext, ".js") == 0) return "application/javascript";
+        if (strcmp(ext, ".json") == 0) return "application/json";
+        if (strcmp(ext, ".png") == 0) return "image/png";
+        if (strcmp(ext, ".jpg") == 0 || strcmp(ext, ".jpeg") == 0) return "image/jpeg";
+        if (strcmp(ext, ".gif") == 0) return "image/gif";
+        if (strcmp(ext, ".pdf") == 0) return "application/pdf";
+    }
+    return "application/octet-stream"; // Default content type
+}
+
 // Function to send a file over a socket
 int send_file(int socket, const char *path) {
     const char *prefix = "./src";
@@ -59,17 +77,21 @@ int send_file(int socket, const char *path) {
     }
 
     // Send HTTP headers before the file content
-    const char *headers = "HTTP/1.1 200 OK\r\n"
-                          "Content-Type: application/octet-stream\r\n"
-                          "Content-Length: ";
+    const char *content_type = get_content_type(path);
     struct stat file_stat;
     if (fstat(file_fd, &file_stat) < 0) {
         perror("Failed to get file stats");
         close(file_fd);
         return -1;
     }
-    char length_header[256];
-    snprintf(length_header, sizeof(length_header), "%s%lld\r\n\r\n", headers, (long long)file_stat.st_size);
+    // Prepare and send the HTTP response headers
+    char length_header[512]; // Buffer for the response headers
+    snprintf(length_header, sizeof(length_header),
+             "HTTP/1.1 200 OK\r\n"
+             "Content-Type: %s\r\n"
+             "Content-Length: %lld\r\n"
+             "\r\n",
+             content_type, (long long)file_stat.st_size);
     send(socket, length_header, strlen(length_header), 0); // Send headers
 
     char buffer[4096];  // Buffer for reading the file
