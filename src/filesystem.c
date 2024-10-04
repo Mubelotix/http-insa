@@ -95,7 +95,7 @@ const char* get_content_type(const char *path) {
         if (strcmp(ext, ".eps") == 0) return "application/postscript";
         if (strcmp(ext, ".svg") == 0) return "image/svg+xml";
     }
-    perror("Extension inconnue: veuillez utiliser un fichier avec une extension plus courante");
+    perror("Extension inconnue: veuillez utiliser un fichier avec une extension plus courante\n");
     return "application/octet-stream"; // Default content type
 }
 
@@ -140,7 +140,7 @@ int send_file(int socket, const char *path) {
     if (stat(path, &file_stat) < 0) {
         const char *error_response = "HTTP/1.1 404 Not Found\r\n"
                                      "Content-Type: text/plain\r\n"
-                                     "Content-Length: 19\r\n"
+                                     "Content-Length: 14\r\n"
                                      "\r\n"
                                      "404 Not Found\n";
         send(socket, error_response, strlen(error_response), 0);
