@@ -38,6 +38,7 @@ int main() {
     // 3. Bind the socket to the specified IP and port
     if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
         perror("bind failed");
+        printf("Try running: kill -9 $(lsof -t -i:%d)\n", settings.port);
         close(server_fd);
         exit(EXIT_FAILURE);
     }
