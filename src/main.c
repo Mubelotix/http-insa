@@ -5,13 +5,20 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include "test.h"
+#include "settings.h"
 
-#define PORT 8080
 #define BACKLOG 10      // Number of pending connections queue will hold
 
-void *handle_connection(void *socket_desc);
+typedef struct {
+    int socket_desc;
+    ServerSettings settings;
+} ConnectionData;
+
+void *handle_connection(void* data);
 
 int main() {
+    ServerSettings settings = default_server_settings();
+
     int server_fd, new_socket;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
@@ -24,8 +31,8 @@ int main() {
 
     // 2. Define the address to bind to
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;  // Listen on all network interfaces
-    address.sin_port = htons(PORT);        // Port number (8080)
+    address.sin_addr.s_addr = inet_addr(settings.ip_address);
+    address.sin_port = htons(settings.port);
 
     // 3. Bind the socket to the specified IP and port
     if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
@@ -41,7 +48,7 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    printf("Listening on port %d...\n", PORT);
+    printf("Serving %s on %s:%d\n", settings.root_folder, settings.ip_address, settings.port);
 
     // 5. Accept an incoming connection
     while (1) {
@@ -56,12 +63,17 @@ int main() {
 
         // 6. Spawn a new thread to handle the connection
         pthread_t thread_id;
-        int *new_sock = malloc(sizeof(int));  // Allocate memory for the new socket descriptor
-        *new_sock = new_socket;
+        ConnectionData *conn_data = malloc(sizeof(ConnectionData));
+        if (conn_data == NULL) {
+            perror("Failed to allocate memory for connection data");
+            close(new_socket); // Close socket if unable to allocate memory
+            continue;
+        }        conn_data->socket_desc = new_socket;
+        conn_data->settings = settings; // Copy the settings to the thread
 
-        if (pthread_create(&thread_id, NULL, handle_connection, (void*)new_sock) != 0) {
+        if (pthread_create(&thread_id, NULL, handle_connection, (void*)conn_data) != 0) {
             perror("Failed to create thread");
-            free(new_sock);  // Free memory if thread creation fails
+            free(conn_data);  // Free memory if thread creation fails
             close(new_socket);  // Close socket if unable to create a thread
         }
 
@@ -76,11 +88,12 @@ int main() {
 }
 
 // 7. Function to handle a connection
-void *handle_connection(void *socket_desc) {
-    int sock = *(int*)socket_desc;
-    free(socket_desc);  // Free the allocated memory for the socket descriptor
+void *handle_connection(void* data) {
+    ConnectionData *conn_data = (ConnectionData *)data;
+    int sock = conn_data->socket_desc;
+    ServerSettings settings = conn_data->settings;
 
-    // Send a message to the client
+    // Send a message to the client²
     // char *message = "Hello! You are connected to the server.\n";
     // send(sock, message, strlen(message), 0);
 
@@ -95,10 +108,13 @@ void *handle_connection(void *socket_desc) {
         char *path = get_path(buffer); // Use the get_path function
         if (path) {
             printf("Extracted path: '%s'\n", path);
-            if (send_file(sock, path) < 0) {
-                printf("Failed to send file: %s\n", path);
+            char full_path[4096];
+            snprintf(full_path, sizeof(full_path), "%s%s", settings.root_folder, path);
+            free(path);
+
+            if (send_file(sock, full_path) < 0) {
+                printf("Failed to send file: %s\n", full_path);
             }
-            free(path);  // Free the allocated memory for the path
         } else {
             printf("Failed to extract path from request.\n");
         }

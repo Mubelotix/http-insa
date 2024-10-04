@@ -95,14 +95,10 @@ void send_directory_listing(int socket, const char *path) {
 
 // Function to send a file over a socket
 int send_file(int socket, const char *path) {
-    const char *prefix = "./src";
-    char full_path[4096];
-    snprintf(full_path, sizeof(full_path), "%s%s", prefix, path);
-
     // Send HTTP headers before the file content
     const char *content_type = get_content_type(path);
     struct stat file_stat;
-    if (stat(full_path, &file_stat) < 0) {
+    if (stat(path, &file_stat) < 0) {
         const char *error_response = "HTTP/1.1 404 Not Found\r\n"
                                      "Content-Type: text/plain\r\n"
                                      "Content-Length: 19\r\n"
@@ -115,11 +111,11 @@ int send_file(int socket, const char *path) {
     // Check if it's a directory
     if (S_ISDIR(file_stat.st_mode)) {
         // Call the directory listing function
-        send_directory_listing(socket, full_path);
+        send_directory_listing(socket, path);
         return 0; // Return 0 on success
     }
 
-    int file_fd = open(full_path, O_RDONLY);  // Open the file in read-only mode
+    int file_fd = open(path, O_RDONLY);  // Open the file in read-only mode
     if (file_fd < 0) {
         const char *error_response = "HTTP/1.1 404 Not Found\r\n"
                                      "Content-Type: text/plain\r\n"
