@@ -2,10 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <arpa/inet.h>  // For socket functions
+#include <arpa/inet.h>
+#include <pthread.h>
 
 #define PORT 8080
 #define BACKLOG 10      // Number of pending connections queue will hold
+
+void *handle_connection(void *socket_desc);
 
 int main() {
     int server_fd, new_socket;
@@ -40,18 +43,52 @@ int main() {
     printf("Listening on port %d...\n", PORT);
 
     // 5. Accept an incoming connection
-    if ((new_socket = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen)) < 0) {
-        perror("accept failed");
-        close(server_fd);
-        exit(EXIT_FAILURE);
+    while (1) {
+        // Accept a new connection
+        if ((new_socket = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen)) < 0) {
+            perror("accept failed");
+            continue;  // Continue on error to accept the next connection
+        }
+
+        // Print incoming connection details
+        printf("Connection received from %s:%d\n", inet_ntoa(address.sin_addr), ntohs(address.sin_port));
+
+        // 6. Spawn a new thread to handle the connection
+        pthread_t thread_id;
+        int *new_sock = malloc(sizeof(int));  // Allocate memory for the new socket descriptor
+        *new_sock = new_socket;
+
+        if (pthread_create(&thread_id, NULL, handle_connection, (void*)new_sock) != 0) {
+            perror("Failed to create thread");
+            free(new_sock);  // Free memory if thread creation fails
+            close(new_socket);  // Close socket if unable to create a thread
+        }
+
+        // Detach the thread to allow independent execution and automatic cleanup
+        pthread_detach(thread_id);
     }
 
-    // 6. Print a message when a connection is received
-    printf("Connection received from %s:%d\n", inet_ntoa(address.sin_addr), ntohs(address.sin_port));
-
-    // Close the sockets
-    close(new_socket);
+    // Close the server socket (unreachable in this case because of the infinite loop)
     close(server_fd);
 
     return 0;
 }
+
+// 7. Function to handle a connection
+void *handle_connection(void *socket_desc) {
+    int sock = *(int*)socket_desc;
+    free(socket_desc);  // Free the allocated memory for the socket descriptor
+
+    // Send a message to the client
+    char *message = "Hello! You are connected to the server.\n";
+    send(sock, message, strlen(message), 0);
+
+    // Print a message indicating that the connection is being handled
+    printf("Handling connection on socket %d\n", sock);
+
+    // Close the client socket after handling
+    close(sock);
+
+    return NULL;
+}
+
