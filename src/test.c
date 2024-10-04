@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include "test.h"
 
 // Function to extract the path from an HTTP request line
@@ -48,9 +49,28 @@ int send_file(int socket, const char *path) {
 
     int file_fd = open(full_path, O_RDONLY);  // Open the file in read-only mode
     if (file_fd < 0) {
-        perror("Failed to open file");
+        const char *error_response = "HTTP/1.1 404 Not Found\r\n"
+                                     "Content-Type: text/plain\r\n"
+                                     "Content-Length: 19\r\n"
+                                     "\r\n"
+                                     "404 Not Found\n";
+        send(socket, error_response, strlen(error_response), 0);
         return -1; // Return -1 if file opening fails
     }
+
+    // Send HTTP headers before the file content
+    const char *headers = "HTTP/1.1 200 OK\r\n"
+                          "Content-Type: application/octet-stream\r\n"
+                          "Content-Length: ";
+    struct stat file_stat;
+    if (fstat(file_fd, &file_stat) < 0) {
+        perror("Failed to get file stats");
+        close(file_fd);
+        return -1;
+    }
+    char length_header[256];
+    snprintf(length_header, sizeof(length_header), "%s%lld\r\n\r\n", headers, (long long)file_stat.st_size);
+    send(socket, length_header, strlen(length_header), 0); // Send headers
 
     char buffer[4096];  // Buffer for reading the file
     ssize_t bytes_read, bytes_sent;
