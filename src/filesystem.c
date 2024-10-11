@@ -12,10 +12,10 @@
 const char* get_content_type(const char *path) {
     const char *ext = strrchr(path, '.'); // Find the last dot in the path
     if (ext) {
-        if (strcmp(ext, ".html") == 0) return "text/html";
-        if (strcmp(ext, ".htm") == 0) return "text/html";
-        if (strcmp(ext, ".txt") == 0) return "text/plain";
-        if (strcmp(ext, ".css") == 0) return "text/css";
+        if (strcmp(ext, ".html") == 0) return "text/html; charset=utf-8";
+        if (strcmp(ext, ".htm") == 0) return "text/html; charset=utf-8";
+        if (strcmp(ext, ".txt") == 0) return "text/plain; charset=utf-8";
+        if (strcmp(ext, ".css") == 0) return "text/css; charset=utf-8";
         if (strcmp(ext, ".js") == 0) return "application/javascript";
         if (strcmp(ext, ".json") == 0) return "application/json";
         if (strcmp(ext, ".png") == 0) return "image/png";
