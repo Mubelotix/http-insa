@@ -117,7 +117,7 @@ void *handle_connection(void* data) {
                                      "Content-Length: 14\r\n"
                                      "\r\n"
                                      "404 Not Found\n";
-        send(socket, error_response, strlen(error_response), 0);
+        send(sock, error_response, strlen(error_response), 0);
         close(sock);
         free(data);
         return NULL;

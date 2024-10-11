@@ -6,7 +6,7 @@
 #include "parser.h"
 
 // Function to extract the path from an HTTP request line
-const char *get_path(const char *request) {
+char *get_path(const char *request) {
     // Check if the request is NULL or empty
     if (request == NULL || *request == '\0') {
         return NULL;
