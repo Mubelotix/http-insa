@@ -1,3 +1,5 @@
+Tiny school project
+
 ## Building
 
 ```bash
